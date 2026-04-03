@@ -10,12 +10,14 @@
 #'     and no more
 #' * a column named according to the input argument 'group', used to separate
 #'     animals by some category e.g. genotype, treatment, etc
-#'  @param group A column in the data frame data, see argument data
-#'  @import data.table
-#'  @import ggplot2
-#'  @export
+#' @param group A column in the data frame data, see argument data
+#' @import data.table
+#' @importFrom data.table `:=`
+#' @import ggplot2
+#' @export
 paired_plot <- function(
-    data, y_var, group, direction = "horizontal",
+    data, y_var, group,
+    direction = "horizontal",
     test = "paired",
     map_signif_level = TRUE,
     y_limits = c(-1, 1),
@@ -38,7 +40,6 @@ paired_plot <- function(
     point_size = POINT_SIZE,
     linewidth_mean = LINEWIDTH_MEAN,
     point_size_mean = POINT_SIZE_MEAN,
-    family = FONT,
     vjust = VJUST,
     angle_n = 45,
     text_vjust = 0,
@@ -48,8 +49,10 @@ paired_plot <- function(
     drop = FALSE,
     alternative="greater",
     y_label=NULL,
-    n_y_ticks=NULL
+    n_y_ticks = NULL
     ) {
+
+  . <- `:=` <- id <- x <- N <- NULL
 
   if (is.null(group)) {
     data$group__ <- "A"
@@ -59,7 +62,7 @@ paired_plot <- function(
   } else {
     data$group__ <- data[[group]]
   }
-  
+
   if (is.null(group_levels)) group_levels <- levels(data[[group]])
 
   if (is.null(y_label)) {
@@ -68,10 +71,8 @@ paired_plot <- function(
 
   if (!is.null(test)) test <- get(paste0(test, "_wilcoxon_test"))
 
-  . <- std_error <- id <- annotations <- x <- group__ <- N <- NULL
 
   data$y_var <- data[[y_var]]
-  
 
   if (is.na(y_limits[1])) {
       y_limits[1] <- min(data$y_var)
@@ -95,18 +96,24 @@ paired_plot <- function(
   annotation_df$y_var <- annotation_df[[y_var]]
   levels(data[[group]]) <- group_levels
   levels(annotation_df[[group]]) <- group_levels
-  
+
+  data <- data.table::copy(data)
+  annotation_df <- data.table::copy(annotation_df)
+
   data[, x := ifelse(test == "PRE", 1+0, 2-0)]
   annotation_df[, x := ifelse(test == "PRE", 1+0, 2-0)]
-  
+
   n_facets <- length(unique(data$group__))
 
-  panel <- ggplot(data = data, aes(x = x, y = y_var)) +
-    geom_point(
+  panel <- ggplot2::ggplot(
+      data = data,
+      mapping = ggplot2::aes(x = x, y = y_var)
+    ) +
+    ggplot2::geom_point(
       size = point_size,
       color = distribution_color
     ) +
-    geom_line(
+    ggplot2::geom_line(
       aes(group = id),
       color = distribution_color,
       linewidth = linewidth
@@ -126,44 +133,47 @@ paired_plot <- function(
       text_vjust = text_vjust,
       text_hjust = text_hjust,
       textsize = textsize,
-      family = family,
       x_annotation = x_annotation,
       y_annotation = y_annotation_n,
       angle = angle_n
     )
   }
-  panel <- add_facet(panel, direction, drop=drop)
-  
-  
+  panel <- add_facet(panel, direction, drop = drop)
+
+  y_span <- max(annotation_df$y_var)-min(annotation_df$y_var)
 
   if (!is.null(test)) {
     if (is.null(y_annotation)) {
-      y_annotation <- y_limits[2]
-      
+      if(is.na(y_limits[2])) {
+        y_annotation <- max(annotation_df$y_var) + 0.1 * y_span
+      } else {
+        y_annotation <- y_limits[2]
+      }
     }
+
+    print(y_annotation)
     panel <- tryCatch({
       add_significance_marks(
         panel, test, annotation_df, y_annotation, vjust,
         textsize = starsize,
         map_signif_level = map_signif_level,
-        family = family, offset = 0
+        offset = 0
       )},
       error = function(e) {
         print(e)
         return(panel)
     })
   }
-  
+
   if (is.null(n_y_ticks)) {
-    y_breaks <- waiver()
+    y_breaks <- ggplot2::waiver()
   } else {
-    y_breaks <- seq(from = y_limits[1], to = y_limits[2], length.out=n_y_ticks)
+    y_breaks <- seq(from = y_limits[1], to = y_limits[2], length.out = n_y_ticks)
   }
-  print(y_breaks)
 
   panel <- panel +
     scale_y_continuous(breaks=y_breaks, expand = expansion(add = c(0, 0)), name=y_label) +
-    scale_x_continuous(expand = expansion(add=c(offset,0))) +
+    scale_x_continuous(expand = expansion(add = c(offset, 0))) +
     coord_cartesian(clip = "off", ylim = y_limits) +
     paired_plot_theme
 
@@ -194,82 +204,111 @@ save_paired_plot <- function(plot, ratio, size_unit = 5, ...) {
   })
 }
 
+#' @import ggplot2
 add_trend_geom <- function(
-    panel, annotation_df,
-    colors = NULL,
-    point_size = POINT_SIZE_MEAN,
-    linewidth = LINEWIDTH_MEAN,
-    errorbar_width = ERRORBAR_WIDTH) {
+  panel, annotation_df,
+  colors = NULL,
+  point_size = POINT_SIZE_MEAN,
+  linewidth = LINEWIDTH_MEAN,
+  errorbar_width = ERRORBAR_WIDTH
+) {
 
   error <- group__ <- x <- y_var <- NULL
-  
-  
+
   margin <- 0.0 # 0.04
   annotation_df[, margin := margin]
   annotation_df[, ymin := ifelse((y_var - error) < (y_var - margin), (y_var - error), (y_var - margin))]
   annotation_df[, ymax := ifelse((y_var + error) > (y_var + margin), (y_var + error), (y_var + margin))]
 
-  
+  if (length(colors) == 1 && !is.null(colors) && is.na(colors)) {
+    annotation_df[, colors__ := 1]
+    colors <- NULL
+  } else {
+    annotation_df[, colors__ := group__]
+  }
+
   if (is.null(colors)) {
     panel <- panel +
-      geom_line(
+      ggplot2::geom_line(
         data = annotation_df,
-        aes(
+        ggplot2::aes(
           x = x, y = y_var,
-          color = group__,
+          color = colors__,
           group = group__
         ),
         linewidth = linewidth
       ) +
-      geom_point(
+      ggplot2::geom_point(
         data = annotation_df,
         mapping = aes(
           x = x, y = y_var,
-          color = group__,
+          color = colors__,
           group = group__
         ),
         size = point_size
       )
-  } else {
-
+  } else if(all(colors %in% colnames(annotation_df))) {
+    annotation_df$color__ <- annotation_df[[colors]]
     panel <- panel +
-      geom_line(
+      ggplot2::geom_line(
         data = annotation_df,
-        aes(
+        ggplot2::aes(
           x = x, y = y_var,
-          col = group__,
+          color = colors__,
           group = group__
         ),
         linewidth = linewidth
       ) +
-      geom_point(
+      ggplot2::geom_point(
         data = annotation_df,
         size = point_size,
-        # shape = 1,
         mapping = aes(
-          color = group__,
+          color = colors__,
           x = x, y = y_var,
           group = group__
         )
       )
-    if(length(colors) != length(unique(annotation_df$group__))) {
-      warning("Passed colors does not match number of facets")
-    } else {
-      panel <- panel + scale_fill_manual(values = colors) +
-      scale_color_manual(values = colors)
-    }
-  }
-  
+    
+  } else {
+    panel <- panel +
+      ggplot2::geom_line(
+        data = annotation_df,
+        ggplot2::aes(
+          x = x, y = y_var,
+          col = colors__,
+          group = group__
+        ),
+        linewidth = linewidth
+      ) +
+      ggplot2::geom_point(
+        data = annotation_df,
+        size = point_size,
+        mapping = aes(
+          color = colors__,
+          x = x, y = y_var,
+          group = group__
+        )
+      )
 
+      if (is.null(colors)) {
+        # do nothing, no colors passed
+      } else if (length(colors) != length(unique(annotation_df$colors__))) {
+        warning("Passed colors does not match number of facets")
+      } else {
+        panel <- panel + ggplot2::scale_fill_manual(values = colors) +
+          ggplot2::scale_color_manual(values = colors)
+      }
+  }
   return(panel)
 }
 
 
-add_facet <- function(panel, direction, drop=TRUE) {
+#' @importFrom ggplot2 facet_grid
+add_facet <- function(panel, direction, drop = TRUE) {
   if (direction == "horizontal") {
-    panel <- panel + facet_grid(. ~ group__, drop=drop)
+    panel <- panel + ggplot2::facet_grid(. ~ group__, drop = drop)
   } else if (direction == "vertical") {
-    panel <- panel + facet_grid(group__ ~ ., drop=drop)
+    panel <- panel + ggplot2::facet_grid(group__ ~ ., drop = drop)
   }
   return(panel)
 }

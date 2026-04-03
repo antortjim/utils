@@ -35,33 +35,47 @@ multiple_testing_correction <- function(alphas, p, correction) {
 
 
 #' @import data.table
-make_annotation_df <- function(df, y_var, variable, test_F, trend_statistic, error_statistic, correction, ...) {
-  var__ <- std_error <- y_std <- N <- . <- NULL
+make_annotation_df <- function(df, y_var, variable, test_F, trend_statistic, error_statistic, correction, alternative, ...) {
+  test <- var__ <- std_error <- y_std <- N <- . <- NULL
   
   
   values <- levels(df[[variable]])
   if (is.null(values)) {
     values <- unique(df[[variable]])
   }
+  if (is.null(test_F)) {
+    warning("No test passed, significance will not be evaluated")
+  }
   min_n_points <- 2
-  
+
+
   test_out <- lapply(values, function(val) {
     x <- df[df[[variable]] == val & test == "PRE", y_var]
     y <- df[df[[variable]] == val & test == "POST", y_var]
-    if (length(x) < min_n_points | is.null(test)) {
+    estim <- round(mean(y) - mean(x), 2)
+
+    if (alternative == "one.sided") {
+      alt <- ifelse(estim > 0, "less", "greater")
+    } else {
+      stopifnot(alternative %in% c("less", "greater", "two.sided"))
+      alt <- alternative
+    }
+
+    if (length(x) < min_n_points | is.null(test_F)) {
       return(list(p.value = NA, estimate = NA))
     }
-    estim <- round(mean(y) - mean(x), 2)
+
 
     if (!is.null(test_F)) {
       out <- test_F(
         x = x,
         y = y,
+        alternative = alt,
         ...
       )
       out$estimate <- estim
     } else {
-      out <- list(p.value=NA, estiamte=estim)
+      out <- list(p.value = NA, estimate = estim)
     }
     out
   })
@@ -108,12 +122,12 @@ make_annotation_df <- function(df, y_var, variable, test_F, trend_statistic, err
   return(stats_df)
 }
 
-add_n_annotation <- function(panel, annotation_df, x_annotation = NULL, y_annotation = -Inf, text_vjust = 0, text_hjust = 0, textsize = TEXT_SIZE, family = FONT, angle = 0) {
+add_n_annotation <- function(panel, annotation_df, x_annotation = NULL, y_annotation = -Inf, text_vjust = 0, text_hjust = 0, textsize = TEXT_SIZE, angle = 0) {
   if (!is.null(x_annotation)) {
     panel <- panel +
       geom_text(
         data = annotation_df, y = y_annotation, size = textsize, angle = angle,
-        family = family, hjust = text_hjust,
+        hjust = text_hjust,
         vjust = text_vjust,
         mapping = aes(label = paste0("n = ", N)),
         x = x_annotation
@@ -124,7 +138,7 @@ add_n_annotation <- function(panel, annotation_df, x_annotation = NULL, y_annota
         data = annotation_df,
         mapping = aes(label = paste0("n = ", N), x = x_pos),
         y = y_annotation, size = textsize, angle = angle,
-        family = family, hjust = text_hjust,
+        hjust = text_hjust,
         vjust = text_vjust,
       )
   }
@@ -208,31 +222,31 @@ keep_only_with_ethoscope_data <- function(idoc_data, sleep_data) {
 
 add_significance_marks <- function(
     panel, test, annotation_df, y_annotation,
-    vjust, textsize, map_signif_level, family,
+    vjust, textsize, map_signif_level,
     xmin = 1, xmax = 2, offset
 ) {
   group__ <- estimate <- p <- NULL
   
-  xmin <- xmin+offset
-  xmax <- xmax-offset
+  xmin <- xmin + offset
+  xmax <- xmax - offset
   
   if (map_signif_level) {
-    panel <- panel + geom_signif(
+    panel <- panel + ggsignif::geom_signif(
       data = annotation_df,
       mapping = aes(annotations = stars, color=NULL, fill=NULL),
       y_position = y_annotation, test = test,
       manual = TRUE, tip_length = 0,
-      family = family, vjust = vjust,
+      vjust = vjust,
       textsize = textsize, size = 1,
       xmin = xmin, xmax = xmax
     )
   } else {
-    panel <- panel + geom_signif(
+    panel <- panel + ggsignif::geom_signif(
       data = annotation_df,
       mapping = aes(annotations = paste0("< ", ceiling(p*100)/100), color=NULL, fill=NULL),
       y_position = y_annotation, test = test,
       manual = TRUE, tip_length = 0,
-      family = family, vjust = vjust,
+      vjust = vjust,
       xmin = xmin, xmax = xmax
     )
   }
@@ -252,7 +266,7 @@ add_significance_marks <- function(
 
 make_annotation_df_boxplots <- function(data, comparisons, correction, test) {
   
-  group__ <- p <- NULL
+  group__ <- p <- PI <- NULL
   
   test_results <- list()
   for (i in seq_along(comparisons)) {

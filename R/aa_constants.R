@@ -1,10 +1,9 @@
 TEXT_SIZE <- 12 # 20 becomes 20
-TITLE_SIZE <- 15
-FONT <- "sans"
+TITLE_SIZE <- 12
 STARSIZE <- 5
 N_TEXT_SIZE <- 4 # 5 becomes 14.23
 PLOT_TAG_SIZE <- 22
-LEGEND_TEXT_SIZE <- 15
+LEGEND_TEXT_SIZE <- STARSIZE
 
 phi <- sqrt(5) / 2 + 0.5
 
