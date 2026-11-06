@@ -12,7 +12,6 @@ Depends:
     data.table (>= 1.14.0)
 Imports:
     ggsignif,
-    ggprism,
     yaml (>= 2.3.5)
 Suggests:
     rmarkdown

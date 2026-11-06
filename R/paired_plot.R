@@ -50,7 +50,7 @@ paired_plot <- function(
     alternative="greater",
     y_label=NULL,
     n_y_ticks = NULL
-    ) {
+  ) {
 
   . <- `:=` <- id <- x <- N <- NULL
 
@@ -66,7 +66,7 @@ paired_plot <- function(
   if (is.null(group_levels)) group_levels <- levels(data[[group]])
 
   if (is.null(y_label)) {
-      y_label<-y_var
+    y_label<-y_var
   }
 
   if (!is.null(test)) test <- get(paste0(test, "_wilcoxon_test"))
@@ -75,10 +75,10 @@ paired_plot <- function(
   data$y_var <- data[[y_var]]
 
   if (is.na(y_limits[1])) {
-      y_limits[1] <- min(data$y_var)
+    y_limits[1] <- min(data$y_var)
   }
   if (is.na(y_limits[2])) {
-      y_limits[2] <- max(data$y_var)
+    y_limits[2] <- max(data$y_var)
   }
 
   group <- "group__"
@@ -106,15 +106,15 @@ paired_plot <- function(
   n_facets <- length(unique(data$group__))
 
   panel <- ggplot2::ggplot(
-      data = data,
-      mapping = ggplot2::aes(x = x, y = y_var)
-    ) +
+    data = data,
+    mapping = ggplot2::aes(x = x, y = y_var)
+  ) +
     ggplot2::geom_point(
       size = point_size,
       color = distribution_color
     ) +
     ggplot2::geom_line(
-      aes(group = id),
+      mapping = aes(group = id),
       color = distribution_color,
       linewidth = linewidth
     )
@@ -140,7 +140,7 @@ paired_plot <- function(
   }
   panel <- add_facet(panel, direction, drop = drop)
 
-  y_span <- max(annotation_df$y_var)-min(annotation_df$y_var)
+  y_span <- max(annotation_df$y_var) - min(annotation_df$y_var)
 
   if (!is.null(test)) {
     if (is.null(y_annotation)) {
@@ -151,7 +151,6 @@ paired_plot <- function(
       }
     }
 
-    print(y_annotation)
     panel <- tryCatch({
       add_significance_marks(
         panel, test, annotation_df, y_annotation, vjust,
@@ -172,7 +171,11 @@ paired_plot <- function(
   }
 
   panel <- panel +
-    scale_y_continuous(breaks=y_breaks, expand = expansion(add = c(0, 0)), name=y_label) +
+    scale_y_continuous(
+      breaks = y_breaks,
+      expand = expansion(add = c(0, 0)),
+      name = y_label
+    ) +
     scale_x_continuous(expand = expansion(add = c(offset, 0))) +
     coord_cartesian(clip = "off", ylim = y_limits) +
     paired_plot_theme
@@ -213,7 +216,7 @@ add_trend_geom <- function(
   errorbar_width = ERRORBAR_WIDTH
 ) {
 
-  error <- group__ <- x <- y_var <- NULL
+  error <- colors__ <- group__ <- x <- y_var <- NULL
 
   margin <- 0.0 # 0.04
   annotation_df[, margin := margin]
