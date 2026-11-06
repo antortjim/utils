@@ -51,14 +51,15 @@ EXPANSION_Y_BOTTOM <- 0
 EXPANSION_Y_TOP <- 0
 LINEWIDTH <- .8
 
-width <- dev.size("cm")[1] * 10
+# Reference width (10 x the width in cm of R's default 7 inch graphics device).
+# This used to be dev.size("cm")[1] * 10, which opened a graphics device
+# (creating Rplots.pdf) whenever the package was built or loaded and made
+# point sizes depend on whichever device happened to be open.
+width <- 7 * 2.54 * 10
 
 POINT_SIZE <- width * 0.008
 ERRORBAR_WIDTH <- .1
-print(ERRORBAR_WIDTH)
 POINT_SIZE_MEAN <- width * 0.012
-print(POINT_SIZE)
-print(POINT_SIZE_MEAN)
 SUMMARY_PLOT_POINT_SIZE <- 2
 
 
