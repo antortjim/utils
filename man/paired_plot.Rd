@@ -44,19 +44,99 @@ paired_plot(
 )
 }
 \arguments{
-\item{data}{Data frame with columns:
+\item{data}{A data.frame or data.table in long format with columns:
 \itemize{
-\item y_var: numeric from -1 to 1
-\item test: one of PRE or POST
-\item id: unique to each animal. The same animal must have one PRE and one POST value,
-and no more
-\item a column named according to the input argument 'group', used to separate
-animals by some category e.g. genotype, treatment, etc
+\item the column named by \code{y_var}: numeric response (e.g. a preference index
+between -1 and 1)
+\item \code{test}: either \code{"PRE"} or \code{"POST"}
+\item \code{id}: identifies each animal. Every animal must have exactly one PRE and
+one POST row
+\item the column named by \code{group} (optional), used to split animals into facets
+by some category e.g. genotype or treatment
 }}
 
-\item{group}{A column in the data frame data, see argument data}
+\item{y_var}{Name of the numeric column to plot.}
+
+\item{group}{Name of the grouping column. If \code{NULL}, all animals go into a
+single facet. If it is not a column of \code{data}, it is used as a constant
+group label.}
+
+\item{direction}{\code{"horizontal"} (facets side by side) or \code{"vertical"}.}
+
+\item{test}{Prefix of the statistical test to use: \code{"paired"} or
+\code{"unpaired"} (Wilcoxon tests, see \code{R/tests.R}), or \code{NULL} to skip testing.}
+
+\item{map_signif_level}{If \code{TRUE}, annotate with stars (NS, *, **, ***);
+otherwise annotate with the rounded-up p value.}
+
+\item{y_limits}{Length-2 numeric vector with the y axis limits. Use \code{NA}
+for either element to take it from the data.}
+
+\item{trend_statistic}{Column of the summary table used as the group trend:
+\code{"average"} or \code{"median"}.}
+
+\item{error_statistic}{Column of the summary table used as the error:
+\code{"std_error"} or \code{"std"}.}
+
+\item{colors}{Colors of the group trend: \code{NULL} for the ggplot2 default
+palette, \code{NA} for a single color, a vector of colors (one per group), or
+the name of a column of the summary table to map to color.}
+
+\item{y_annotation}{y position of the significance bar. Defaults to the
+upper y limit, or slightly above the data if no upper limit was given.}
+
+\item{x_annotation}{x position of the sample size label (1 = PRE, 2 = POST).}
+
+\item{text_hjust, text_vjust}{Justification of the sample size label.}
+
+\item{y_annotation_n}{y position of the sample size label, or \code{NULL} to
+omit it.}
+
+\item{text_y_size, title_y_size, y_step, expansion_y_bottom, expansion_y_top}{Currently unused, kept for backwards compatibility.}
+
+\item{starsize}{Text size of the significance annotation.}
+
+\item{textsize}{Text size of the sample size label.}
+
+\item{distribution_color}{Color of the individual animals.}
+
+\item{linewidth, point_size}{Line width and point size of the individual
+animals.}
+
+\item{linewidth_mean, point_size_mean}{Line width and point size of the
+group trend.}
+
+\item{vjust}{Vertical justification of the significance annotation.}
+
+\item{angle_n}{Angle of the sample size label.}
+
+\item{offset}{Extra space added to the left of the x axis.}
+
+\item{correction}{Multiple testing correction applied to the star
+thresholds: \code{NULL} (none) or \code{"bonferroni"}.}
+
+\item{group_levels}{Order of the groups (facets). Defaults to the factor
+levels of the \code{group} column.}
+
+\item{drop}{Passed to \code{\link[ggplot2:facet_grid]{ggplot2::facet_grid()}}.}
+
+\item{alternative}{Alternative hypothesis, as in \code{\link[stats:wilcox.test]{stats::wilcox.test()}}
+(\code{x} = PRE, \code{y} = POST). \code{"one.sided"} picks the side matching the sign
+of the observed change.}
+
+\item{y_label}{Title of the y axis. Defaults to \code{y_var}.}
+
+\item{n_y_ticks}{Number of evenly spaced y axis breaks between the limits,
+or \code{NULL} for the ggplot2 default.}
+}
+\value{
+A list with elements \code{gg} (the ggplot object), \code{n_facets},
+\code{direction} and \code{annotation} (per group and test summary statistics,
+p values and stars).
 }
 \description{
-Produce a paired plot that represents the value of a numeric variable
-in the same individual before and after some treatment
+Produce a paired plot showing the value of a numeric variable in the same
+individual before (PRE) and after (POST) some treatment. Each individual is
+drawn as a grey line joining its two values, the group summary is drawn on
+top, and a significance bar comparing PRE and POST is added per group.
 }

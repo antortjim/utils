@@ -1,3 +1,7 @@
+# Package-wide defaults for paired_plot() and friends. Files are prefixed aa_
+# so that they are collated (and these objects defined) before the rest.
+
+# Font sizes (pt for themes, mm for geom_text/geom_signif sizes)
 TEXT_SIZE <- 12 # 20 becomes 20
 TITLE_SIZE <- 12
 STARSIZE <- 5
@@ -5,8 +9,10 @@ N_TEXT_SIZE <- 4 # 5 becomes 14.23
 PLOT_TAG_SIZE <- 22
 LEGEND_TEXT_SIZE <- STARSIZE
 
+# golden ratio
 phi <- sqrt(5) / 2 + 0.5
 
+# ZT time windows (30 min bins)
 zt05_11 <- paste0("ZT", seq(5, 10.5, 0.5))
 zt12_18 <- paste0("ZT", seq(12, 17.5, 0.5))
 zt05_24 <- paste0("ZT", seq(5, 23.5, 0.5))
@@ -18,6 +24,7 @@ zts <- list(
   zt_all = zt_all
 )
 
+# Colors of each experimental condition
 NS_6x_spaced <- "magenta"
 NS_6x_massed <- "#145C9E"
 no_training <- "black"
@@ -38,6 +45,7 @@ ERROR_STATISTIC <- "std_error"
 TREND_STATISTIC <- "average"
 
 
+# Color sets of the figure panels
 colors_panel1 <- c(paired, m4o1, unpaired, orco)
 colors_panel2 <- c(stm_20min, stm_1hr, stm_3hr, stm_24hr)
 colors_panel3 <- c(NS_6x_spaced, NS_6X_spaced_cxm, orb2_6x_spaced, orb2_20min)

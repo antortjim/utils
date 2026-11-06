@@ -1,16 +1,68 @@
 #' Quantify the effect of a treatment on a numeric variable
-#' 
-#' Produce a paired plot that represents the value of a numeric variable
-#' in the same individual before and after some treatment
-#' 
-#' @param data Data frame with columns:
-#' * y_var: numeric from -1 to 1
-#' * test: one of PRE or POST
-#' * id: unique to each animal. The same animal must have one PRE and one POST value,
-#'     and no more
-#' * a column named according to the input argument 'group', used to separate
-#'     animals by some category e.g. genotype, treatment, etc
-#' @param group A column in the data frame data, see argument data
+#'
+#' Produce a paired plot showing the value of a numeric variable in the same
+#' individual before (PRE) and after (POST) some treatment. Each individual is
+#' drawn as a grey line joining its two values, the group summary is drawn on
+#' top, and a significance bar comparing PRE and POST is added per group.
+#'
+#' @param data A data.frame or data.table in long format with columns:
+#' * the column named by `y_var`: numeric response (e.g. a preference index
+#'   between -1 and 1)
+#' * `test`: either `"PRE"` or `"POST"`
+#' * `id`: identifies each animal. Every animal must have exactly one PRE and
+#'   one POST row
+#' * the column named by `group` (optional), used to split animals into facets
+#'   by some category e.g. genotype or treatment
+#' @param y_var Name of the numeric column to plot.
+#' @param group Name of the grouping column. If `NULL`, all animals go into a
+#'   single facet. If it is not a column of `data`, it is used as a constant
+#'   group label.
+#' @param direction `"horizontal"` (facets side by side) or `"vertical"`.
+#' @param test Prefix of the statistical test to use: `"paired"` or
+#'   `"unpaired"` (Wilcoxon tests, see `R/tests.R`), or `NULL` to skip testing.
+#' @param map_signif_level If `TRUE`, annotate with stars (NS, *, **, ***);
+#'   otherwise annotate with the rounded-up p value.
+#' @param y_limits Length-2 numeric vector with the y axis limits. Use `NA`
+#'   for either element to take it from the data.
+#' @param trend_statistic Column of the summary table used as the group trend:
+#'   `"average"` or `"median"`.
+#' @param error_statistic Column of the summary table used as the error:
+#'   `"std_error"` or `"std"`.
+#' @param colors Colors of the group trend: `NULL` for the ggplot2 default
+#'   palette, `NA` for a single color, a vector of colors (one per group), or
+#'   the name of a column of the summary table to map to color.
+#' @param y_annotation y position of the significance bar. Defaults to the
+#'   upper y limit, or slightly above the data if no upper limit was given.
+#' @param x_annotation x position of the sample size label (1 = PRE, 2 = POST).
+#' @param text_hjust,text_vjust Justification of the sample size label.
+#' @param y_annotation_n y position of the sample size label, or `NULL` to
+#'   omit it.
+#' @param text_y_size,title_y_size,y_step,expansion_y_bottom,expansion_y_top
+#'   Currently unused, kept for backwards compatibility.
+#' @param starsize Text size of the significance annotation.
+#' @param textsize Text size of the sample size label.
+#' @param distribution_color Color of the individual animals.
+#' @param linewidth,point_size Line width and point size of the individual
+#'   animals.
+#' @param linewidth_mean,point_size_mean Line width and point size of the
+#'   group trend.
+#' @param vjust Vertical justification of the significance annotation.
+#' @param angle_n Angle of the sample size label.
+#' @param offset Extra space added to the left of the x axis.
+#' @param correction Multiple testing correction applied to the star
+#'   thresholds: `NULL` (none) or `"bonferroni"`.
+#' @param group_levels Order of the groups (facets). Defaults to the factor
+#'   levels of the `group` column.
+#' @param drop Passed to [ggplot2::facet_grid()].
+#' @param alternative Alternative hypothesis, as in [stats::wilcox.test()]
+#'   (`x` = PRE, `y` = POST). `"one.sided"` picks the side matching the sign
+#'   of the observed change.
+#' @param y_label Title of the y axis. Defaults to `y_var`.
+#' @param n_y_ticks Number of evenly spaced y axis breaks between the limits,
+#'   or `NULL` for the ggplot2 default.
+#' @return A list with elements `gg` (the ggplot object), `n_facets`,
+#'   `direction` and `annotation` (per group and test summary statistics,
+#'   p values and stars).
 #' @import data.table
 #' @importFrom data.table `:=`
 #' @import ggplot2
@@ -199,11 +251,16 @@ paired_plot <- function(
   ))
 }
 
+# Deprecated alias of paired_plot
 learning_plot <- function(...) {
   warning("Deprecated. Use paired_plot")
   return(paired_plot(...))
 }
 
+# Save the output of paired_plot() to an svg file whose size scales with the
+# number of facets. `ratio` is the height:width ratio of one facet,
+# `size_unit` is the size of one facet in inches and ... is passed to svg()
+# (e.g. filename).
 save_paired_plot <- function(plot, ratio, size_unit = 5, ...) {
   if (plot$direction == "horizontal") {
     width <- plot$n_facets * size_unit
@@ -220,7 +277,10 @@ save_paired_plot <- function(plot, ratio, size_unit = 5, ...) {
   suppressWarnings(print(plot$gg))
 }
 
-#' @import ggplot2
+# Draw the group trend (mean or median of each group at PRE and POST, joined
+# by a line) on top of the individual animals. See paired_plot() for the
+# meaning of `colors`. errorbar_width is currently unused: error bars are not
+# drawn, although ymin/ymax are computed in annotation_df.
 add_trend_geom <- function(
   panel, annotation_df,
   colors = NULL,
@@ -319,6 +379,7 @@ add_trend_geom <- function(
 }
 
 
+# Facet the panel by group__, side by side or stacked
 #' @importFrom ggplot2 facet_grid
 add_facet <- function(panel, direction, drop = TRUE) {
   if (direction == "horizontal") {

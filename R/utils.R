@@ -1,3 +1,6 @@
+# Convert p values to significance labels: "NS" (p > 0.05), "*" (p <= 0.05),
+# "**" (p <= 0.01) or "***" (p <= 0.005), with thresholds optionally corrected
+# for multiple testing. NA p values give NA.
 pvalue2stars <- function(p, correction, alphas = c(0.05, 0.01, 0.005)) {
   
   alphas <- multiple_testing_correction(alphas, p, correction)
@@ -20,6 +23,8 @@ pvalue2stars <- function(p, correction, alphas = c(0.05, 0.01, 0.005)) {
 
 
 
+# Correct significance thresholds for the number of p values tested.
+# Only "bonferroni" is implemented; NULL means no correction.
 multiple_testing_correction <- function(alphas, p, correction) {
   if (!is.null(correction) && correction=="bonferroni") {
     message(paste0("Applying bonferroni correction: dividing alpha by number of tests = ", length(p)))
@@ -31,6 +36,12 @@ multiple_testing_correction <- function(alphas, p, correction) {
 }
 
 
+# Test PRE vs POST within each group of `variable` and compute summary
+# statistics. Returns one row per group and test with columns p (numeric),
+# p_label, estimate (mean POST - mean PRE), stars, N (animals), average,
+# median, std, std_error, error (= error_statistic) and `y_var`
+# (= trend_statistic). Note the statistics are computed on the column named
+# literally "y_var", which paired_plot() creates.
 #' @import data.table
 make_annotation_df <- function(df, y_var, variable, test_F, trend_statistic, error_statistic, correction, alternative, ...) {
   test <- var__ <- std_error <- y_std <- N <- . <- NULL
@@ -118,6 +129,8 @@ make_annotation_df <- function(df, y_var, variable, test_F, trend_statistic, err
   return(stats_df)
 }
 
+# Label each facet with its number of animals. If x_annotation is NULL the x
+# position is taken from an x_pos column of annotation_df.
 add_n_annotation <- function(panel, annotation_df, x_annotation = NULL, y_annotation = -Inf, text_vjust = 0, text_hjust = 0, textsize = TEXT_SIZE, angle = 0) {
   if (!is.null(x_annotation)) {
     panel <- panel +
@@ -142,6 +155,9 @@ add_n_annotation <- function(panel, annotation_df, x_annotation = NULL, y_annota
 }
 
 
+# Write the data behind a figure panel to csv files under OUTPUT_FOLDER:
+# one file per group (restricted to `columns`) and one file with the
+# `y_column` of every group side by side.
 export_csvs <- function(panel_data, grouping_column, groups, figure_count, columns, y_column = "POST") {
   y_columns <- list()
   available_groups <- c()
@@ -178,6 +194,8 @@ export_csvs <- function(panel_data, grouping_column, groups, figure_count, colum
 
 
 
+# Reshape wide IDOC data (one PRE and one POST column per animal) into the
+# long format expected by paired_plot().
 melt_idoc_data <- function(panel_data, y_var) {
   panel_data_long <- melt(panel_data, measure.vars = c("PRE", "POST"), value.name = y_var, variable.name = "test")
   panel_data_long[, test := factor(test, levels = c("PRE", "POST"))]
@@ -185,6 +203,9 @@ melt_idoc_data <- function(panel_data, y_var) {
 }
 
 
+# Keep only the IDOC animals that also have ethoscope (sleep) data, matching
+# on date, machine and region parsed from the ethoscope id.
+# Note: adds date, machine_name and region_id to sleep_data by reference.
 keep_only_with_ethoscope_data <- function(idoc_data, sleep_data) {
   sleep_data[, date := as.character(substr(id, 1, 10))]
   sleep_data[, machine_name := paste0("ETHOSCOPE_", as.character(substr(id, 21, 23)))]
@@ -206,15 +227,24 @@ keep_only_with_ethoscope_data <- function(idoc_data, sleep_data) {
 
 
 #' Annotate significance of data
-#' 
-#' @param panel: ggplot2 graph
-#' @param test: function used to compute the p-value
-#' @param annotation_df (data.frame): contains columns stars and whatever
-#' variable segregating datasets
-#' @param y_annotation (numeric): Position along the y axis where to place
-#' the annotation
-#' @param offset (numeric): how many units to trim the line
-#' connecting the compared datasets
+#'
+#' Add a significance bar between PRE (x = 1) and POST (x = 2) to every facet,
+#' and print the p value and effect size of each group.
+#'
+#' @param panel A ggplot object.
+#' @param test Function used to compute the p value. Not called here: p values
+#'   are precomputed in `annotation_df`.
+#' @param annotation_df data.table with columns `group__`, `p`, `stars` and
+#'   `estimate`, as returned by `make_annotation_df()`.
+#' @param y_annotation Position along the y axis of the bar.
+#' @param vjust Vertical justification of the label.
+#' @param textsize Text size of the label.
+#' @param map_signif_level If `TRUE` label with stars, otherwise with the
+#'   p value rounded up to two decimals.
+#' @param xmin,xmax x positions of the two ends of the bar.
+#' @param offset How many x units to trim from each end of the bar.
+#' @return The panel with the annotation added.
+#' @keywords internal
 
 add_significance_marks <- function(
     panel, test, annotation_df, y_annotation,
@@ -260,6 +290,9 @@ add_significance_marks <- function(
 }
 
 
+# Like make_annotation_df() but for comparisons between groups: `comparisons`
+# is a list of pairs of group__ values whose PI columns are compared with
+# `test`. Requires an x_pos column in data.
 make_annotation_df_boxplots <- function(data, comparisons, correction, test) {
   
   group__ <- p <- PI <- NULL
@@ -295,6 +328,10 @@ make_annotation_df_boxplots <- function(data, comparisons, correction, test) {
 }
 
 
+# Load ethoscope data for the animals in `metadata`, score sleep and bin it
+# in 30 minute windows (asleep = minutes asleep per bin). Requires the scopr,
+# sleepr and behavr packages and the ethoscope result/cache folders, and
+# saves the result to dt_bin.RDS in the working directory.
 load_ethoscope_data <- function(metadata=NULL) {
   
   if (is.null(metadata)) metadata <- load_metadata_fig5()

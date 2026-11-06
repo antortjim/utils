@@ -18,19 +18,32 @@ add_significance_marks(
 )
 }
 \arguments{
-\item{annotation_df}{(data.frame): contains columns stars and whatever
-variable segregating datasets}
+\item{panel}{A ggplot object.}
 
-\item{y_annotation}{(numeric): Position along the y axis where to place
-the annotation}
+\item{test}{Function used to compute the p value. Not called here: p values
+are precomputed in \code{annotation_df}.}
 
-\item{offset}{(numeric): how many units to trim the line
-connecting the compared datasets}
+\item{annotation_df}{data.table with columns \code{group__}, \code{p}, \code{stars} and
+\code{estimate}, as returned by \code{make_annotation_df()}.}
 
-\item{panel:}{ggplot2 graph}
+\item{y_annotation}{Position along the y axis of the bar.}
 
-\item{test:}{function used to compute the p-value}
+\item{vjust}{Vertical justification of the label.}
+
+\item{textsize}{Text size of the label.}
+
+\item{map_signif_level}{If \code{TRUE} label with stars, otherwise with the
+p value rounded up to two decimals.}
+
+\item{xmin, xmax}{x positions of the two ends of the bar.}
+
+\item{offset}{How many x units to trim from each end of the bar.}
+}
+\value{
+The panel with the annotation added.
 }
 \description{
-Annotate significance of data
+Add a significance bar between PRE (x = 1) and POST (x = 2) to every facet,
+and print the p value and effect size of each group.
 }
+\keyword{internal}
