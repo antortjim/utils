@@ -54,6 +54,9 @@ paired_plot <- function(
 
   . <- `:=` <- id <- x <- N <- NULL
 
+  direction <- match.arg(direction, c("horizontal", "vertical"))
+  data <- data.table::as.data.table(data)
+
   if (is.null(group)) {
     data$group__ <- "A"
     group <- "group__"
@@ -74,11 +77,14 @@ paired_plot <- function(
 
   data$y_var <- data[[y_var]]
 
+  # Remember whether the user fixed the upper limit, so that the significance
+  # annotation can be placed above the data when it was not
+  y_upper_given <- !is.na(y_limits[2])
   if (is.na(y_limits[1])) {
-    y_limits[1] <- min(data$y_var)
+    y_limits[1] <- min(data$y_var, na.rm = TRUE)
   }
   if (is.na(y_limits[2])) {
-    y_limits[2] <- max(data$y_var)
+    y_limits[2] <- max(data$y_var, na.rm = TRUE)
   }
 
   group <- "group__"
@@ -94,9 +100,15 @@ paired_plot <- function(
     alternative = alternative
   )
   annotation_df$y_var <- annotation_df[[y_var]]
-  levels(data[[group]]) <- group_levels
-  levels(annotation_df[[group]]) <- group_levels
 
+  # Reorder (not rename) the groups so facets follow group_levels
+  if (!is.null(group_levels)) {
+    data[[group]] <- factor(data[[group]], levels = group_levels)
+    annotation_df[[group]] <- factor(annotation_df[[group]], levels = group_levels)
+  }
+
+  # copy() restores data.table internals after the base-R column assignments
+  # above, so that := below works by reference without warnings
   data <- data.table::copy(data)
   annotation_df <- data.table::copy(annotation_df)
 
@@ -144,7 +156,7 @@ paired_plot <- function(
 
   if (!is.null(test)) {
     if (is.null(y_annotation)) {
-      if(is.na(y_limits[2])) {
+      if (!y_upper_given) {
         y_annotation <- max(annotation_df$y_var) + 0.1 * y_span
       } else {
         y_annotation <- y_limits[2]
@@ -199,12 +211,13 @@ save_paired_plot <- function(plot, ratio, size_unit = 5, ...) {
   } else if (plot$direction == "vertical") {
     height <- plot$n_facets * size_unit / ratio
     width <- size_unit * ratio
+  } else {
+    stop("Unknown direction: ", plot$direction)
   }
-  suppressWarnings({
-    svg(width = width, height = height, ...)
-    print(plot$gg)
-    dev.off()
-  })
+  grDevices::svg(width = width, height = height, ...)
+  # close the device even if printing the plot fails
+  on.exit(grDevices::dev.off(), add = TRUE)
+  suppressWarnings(print(plot$gg))
 }
 
 #' @import ggplot2
@@ -216,7 +229,7 @@ add_trend_geom <- function(
   errorbar_width = ERRORBAR_WIDTH
 ) {
 
-  error <- colors__ <- group__ <- x <- y_var <- NULL
+  error <- colors__ <- group__ <- x <- y_var <- ymin <- ymax <- NULL
 
   margin <- 0.0 # 0.04
   annotation_df[, margin := margin]
@@ -250,8 +263,8 @@ add_trend_geom <- function(
         ),
         size = point_size
       )
-  } else if(all(colors %in% colnames(annotation_df))) {
-    annotation_df$color__ <- annotation_df[[colors]]
+  } else if (length(colors) == 1 && colors %in% colnames(annotation_df)) {
+    annotation_df[, colors__ := get(colors)]
     panel <- panel +
       ggplot2::geom_line(
         data = annotation_df,
@@ -312,6 +325,8 @@ add_facet <- function(panel, direction, drop = TRUE) {
     panel <- panel + ggplot2::facet_grid(. ~ group__, drop = drop)
   } else if (direction == "vertical") {
     panel <- panel + ggplot2::facet_grid(group__ ~ ., drop = drop)
+  } else {
+    stop("direction must be 'horizontal' or 'vertical', not ", direction)
   }
   return(panel)
 }

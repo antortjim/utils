@@ -1,7 +1,3 @@
-library(data.table)
-library(ggplot2)
-
-
 pvalue2stars <- function(p, correction, alphas = c(0.05, 0.01, 0.005)) {
   
   alphas <- multiple_testing_correction(alphas, p, correction)
@@ -19,6 +15,7 @@ pvalue2stars <- function(p, correction, alphas = c(0.05, 0.01, 0.005)) {
       )
     )
   )
+  return(stars)
 }
 
 
@@ -89,8 +86,8 @@ make_annotation_df <- function(df, y_var, variable, test_F, trend_statistic, err
     stars =  pvalue2stars(p_values, correction)
   )
   annotation_df[[variable]] <- factor(values, levels = values)
-  annotation_df$p <- ifelse(
-    annotation_df$p == 0.001,
+  annotation_df$p_label <- ifelse(
+    !is.na(annotation_df$p) & annotation_df$p < 0.001,
     "< 0.001",
     as.character(annotation_df$p)
   )
@@ -113,7 +110,6 @@ make_annotation_df <- function(df, y_var, variable, test_F, trend_statistic, err
   
   
   stats_df[, std_error := std / sqrt(N)]
-  annotation_df$group__ <- annotation_df[[variable]]
   
   stopifnot(error_statistic %in% colnames(stats_df))
   stopifnot(trend_statistic %in% colnames(stats_df))
@@ -139,7 +135,7 @@ add_n_annotation <- function(panel, annotation_df, x_annotation = NULL, y_annota
         mapping = aes(label = paste0("n = ", N), x = x_pos),
         y = y_annotation, size = textsize, angle = angle,
         hjust = text_hjust,
-        vjust = text_vjust,
+        vjust = text_vjust
       )
   }
   return(panel)
@@ -173,7 +169,7 @@ export_csvs <- function(panel_data, grouping_column, groups, figure_count, colum
     y_columns <- c(y_columns, list(panel_data_subset[[y_column]]))
   }
   
-  y_columns <- Reduce(Cbind, y_columns)
+  y_columns <- Reduce(cbind, y_columns)
   colnames(y_columns) <- available_groups
   out <- paste0(OUTPUT_FOLDER, "/Fig", substr(figure_count, 1, 1), "/Figure_", figure_count, "_boxplot.csv")
   message(out)
@@ -321,7 +317,7 @@ load_ethoscope_data <- function(metadata=NULL) {
     by = c("machine_name", "date", "region_id"), all = TRUE
   )
   setkey(metadata_linked, id)
-  setmeta(dt_bin, metadata_linked)
+  behavr::setmeta(dt_bin, metadata_linked)
   saveRDS(object = dt_bin, file = "dt_bin.RDS")
   # ggplot(data = behavr::rejoin(dt_bin)[Genotype == "Iso31" & interactor == "DefaultStimulator", ], aes(x = t, y = asleep, color = Training)) +
   #   stat_pop_etho() +
